@@ -28,6 +28,11 @@ to its file, so a PDF is renamed rather than downloaded again if its title chang
   axe-core (WCAG 2.2 AA) in light and dark mode at desktop and phone widths;
   any violation fails the deploy. It runs after every PDF download run.
 
+PDFs are made for reading on screen, not printing: page images are scaled to
+1200 px wide at JPEG quality 60 (about 12 MB per 48-page issue, a quarter of
+Issuu's originals) and sized to open at letter width. Older, larger PDFs are
+re-encoded in place on the next download run.
+
 PDFs that would exceed GitHub's 100 MB file limit even after recompression are
 listed in `PDF/skipped.md` and not retried.
 
