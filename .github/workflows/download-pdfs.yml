@@ -32,23 +32,28 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      - name: Install OCR tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-eng ghostscript
+
       - run: pip install -r requirements.txt
 
-      - name: Download missing PDFs
+      - name: Download missing PDFs and OCR them
         id: download
-        run: python scripts/download_pdfs.py links.md PDF "${{ inputs.max_per_run || '10' }}"
+        run: python scripts/download_pdfs.py links.md PDF "${{ inputs.max_per_run || '10' }}" text
 
       - name: Commit and push
         if: always()
         run: |
-          git add PDF
+          git add PDF text
           if git diff --cached --quiet; then
-            echo "No new PDFs."
+            echo "No new PDFs or text."
             exit 0
           fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git commit -m "Add flipbook PDFs"
+          git commit -m "Add flipbook PDFs and text"
           for attempt in 1 2 3; do
             git pull --rebase origin main && git push origin HEAD:main && exit 0
             sleep $((attempt * 10))
@@ -63,7 +68,7 @@ jobs:
 
       # Work through a large backlog in batches; stops once a run makes no progress.
       - name: Continue with next batch
-        if: steps.download.outputs.remaining > 0 && steps.download.outputs.downloaded > 0
+        if: steps.download.outputs.remaining > 0 && steps.download.outputs.progress > 0
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh workflow run download-pdfs.yml --ref main -f max_per_run="${{ inputs.max_per_run || '10' }}"
