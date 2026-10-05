@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - PDF/**
+      - text/**
       - links.md
       - scripts/build_site.py
       - scripts/a11y-check.mjs
@@ -37,7 +38,7 @@ jobs:
       - run: pip install -r requirements.txt
 
       - name: Build site
-        run: python scripts/build_site.py links.md PDF _site
+        run: python scripts/build_site.py links.md PDF _site text
 
       - uses: actions/setup-node@v4
         with:
