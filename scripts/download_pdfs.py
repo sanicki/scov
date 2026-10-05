@@ -3,7 +3,8 @@
 Each flipbook is saved as <pdf_dir>/<title>.pdf, using its label in links.md.
 Titles shared by several flipbooks get the doc name appended. <pdf_dir>/manifest.json
 records which file belongs to which URL, so a PDF is renamed (not downloaded again)
-when its title changes. A flipbook is only saved when every page downloaded, so
+when its title changes, and deleted when its link leaves links.md (for example
+when a newer upload of the same issue replaces it). A flipbook is only saved when every page downloaded, so
 a failed one is retried on the next run.
 
 Usage: python scripts/download_pdfs.py [links.md] [PDF] [max_per_run]
@@ -188,6 +189,15 @@ def save_manifest(path, manifest):
         f.write("\n")
 
 
+def prune(pdf_dir, manifest, names):
+    """Deletes PDFs whose link left links.md (e.g. replaced by a newer upload)."""
+    for url in [u for u in manifest if u not in names]:
+        path = os.path.join(pdf_dir, manifest.pop(url))
+        if os.path.exists(path):
+            print(f"Removing {path} ({url} is no longer in links.md)")
+            os.remove(path)
+
+
 def sync_names(pdf_dir, manifest, names):
     """Renames already-downloaded PDFs whose title changed."""
     targets = {}
@@ -219,6 +229,7 @@ def main():
     manifest_path = os.path.join(pdf_dir, MANIFEST_FILE)
     manifest = load_manifest(manifest_path)
     names = pdf_names(read_links(links_path))
+    prune(pdf_dir, manifest, names)
     sync_names(pdf_dir, manifest, names)
     save_manifest(manifest_path, manifest)
 

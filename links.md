@@ -1,6 +1,6 @@
 # scvcommunications flipbooks
 
-Publications from https://issuu.com/scvcommunications (236 total).
+Publications from https://issuu.com/scvcommunications (227 total).
 Updated daily by `.github/workflows/fetch-links.yml`.
 
 - [Tipster – October 2026](https://issuu.com/scvcommunications/docs/tipster_oct26_issuu)
@@ -9,20 +9,12 @@ Updated daily by `.github/workflows/fetch-links.yml`.
 - [Tipster – July 2026](https://issuu.com/scvcommunications/docs/7_july_2026_tipster_issuu)
 - [Tipster – June 2026](https://issuu.com/scvcommunications/docs/6_june_2026_tipster_issuu)
 - [Tipster – May 2026](https://issuu.com/scvcommunications/docs/5_may_2026_tipster_issuu)
-- [Tipster – April 2026 (3)](https://issuu.com/scvcommunications/docs/4_april_2026_tipster_issuu_9eaaa133196437)
-- [Tipster – April 2026 (2)](https://issuu.com/scvcommunications/docs/4_april_2026_tipster_issuu_5f277cf1ee29ff)
-- [Tipster – April 2026](https://issuu.com/scvcommunications/docs/4_april_2026_tipster_issuu)
-- [Tipster – March 2026 (2)](https://issuu.com/scvcommunications/docs/3_march_2026_tipster_issuu_94eb1b2704932b)
-- [Tipster – March 2026](https://issuu.com/scvcommunications/docs/3_march_2026_tipster_issuu)
-- [Tipster – February 2026 (4)](https://issuu.com/scvcommunications/docs/2_february_2026_tipster_issuu_3557ea0e5316c0)
-- [Tipster – February 2026 (3)](https://issuu.com/scvcommunications/docs/2_february_2026_tipster_issuu_164479672c2026)
-- [Tipster – February 2026 (2)](https://issuu.com/scvcommunications/docs/2_february_2026_tipster_issuu_5c2d73c00def4b)
-- [Tipster – February 2026](https://issuu.com/scvcommunications/docs/2_february_2026_tipster_issuu)
+- [Tipster – April 2026](https://issuu.com/scvcommunications/docs/4_april_2026_tipster_issuu_9eaaa133196437)
+- [Tipster – March 2026](https://issuu.com/scvcommunications/docs/3_march_2026_tipster_issuu_94eb1b2704932b)
+- [Tipster – February 2026](https://issuu.com/scvcommunications/docs/2_february_2026_tipster_issuu_3557ea0e5316c0)
 - [Tipster – January 2026](https://issuu.com/scvcommunications/docs/1_january_2026_tipster_issuu_7a1fb536e5e473)
-- [Tipster – December 2025 (2)](https://issuu.com/scvcommunications/docs/12_december_2025_tipster_issuu_45a6670ff007ae)
-- [Tipster – December 2025](https://issuu.com/scvcommunications/docs/12_december_2025_tipster_issuu)
-- [Tipster – November 2025 (2)](https://issuu.com/scvcommunications/docs/11_november_2025_tipster_issuu_8900b36c9f218c)
-- [Tipster – November 2025](https://issuu.com/scvcommunications/docs/11_november_2025_tipster_issuu)
+- [Tipster – December 2025](https://issuu.com/scvcommunications/docs/12_december_2025_tipster_issuu_45a6670ff007ae)
+- [Tipster – November 2025](https://issuu.com/scvcommunications/docs/11_november_2025_tipster_issuu_8900b36c9f218c)
 - [Golf Handbook – 2025](https://issuu.com/scvcommunications/docs/golf_handbook_2025_7.1.25)
 - [Tipster – October 2025](https://issuu.com/scvcommunications/docs/tipster_-_october_2025)
 - [Tipster – September 2025](https://issuu.com/scvcommunications/docs/09_september_2025_tipster_issuu)
@@ -129,8 +121,7 @@ Updated daily by `.github/workflows/fetch-links.yml`.
 - [Tipster – December 2018](https://issuu.com/scvcommunications/docs/december_2018_tipster-issuu)
 - [Divots – November 2018](https://issuu.com/scvcommunications/docs/november_2018_divots)
 - [Tipster – November 2018](https://issuu.com/scvcommunications/docs/november_2018_tipster_issuu)
-- [Divots – October 2018 (2)](https://issuu.com/scvcommunications/docs/october_2018_divots_af87a29c7d939d)
-- [Divots – October 2018](https://issuu.com/scvcommunications/docs/october_2018_divots)
+- [Divots – October 2018](https://issuu.com/scvcommunications/docs/october_2018_divots_af87a29c7d939d)
 - [Tipster – October 2018](https://issuu.com/scvcommunications/docs/october_2018_tipster_issuu)
 - [Divots – September 2018](https://issuu.com/scvcommunications/docs/september_2018_divots_2e10fe9bd26b85)
 - [Tipster – September 2018](https://issuu.com/scvcommunications/docs/september_2018_tipster_issuu)
