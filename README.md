@@ -10,6 +10,10 @@ Archives the flipbooks published at https://issuu.com/scvcommunications.
   link that doesn't have one yet, 10 per run by default. It starts another run
   while a backlog remains.
 
+PDFs are named after the flipbook's title in `links.md` (with the Issuu doc name
+appended when two flipbooks share a title). `PDF/manifest.json` maps each link
+to its file, so a PDF is renamed rather than downloaded again if its title changes.
+
 PDFs that would exceed GitHub's 100 MB file limit even after recompression are
 listed in `PDF/skipped.md` and not retried.
 
