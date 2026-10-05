@@ -14,6 +14,12 @@ PDFs are named after the flipbook's title in `links.md` (with the Issuu doc name
 appended when two flipbooks share a title). `PDF/manifest.json` maps each link
 to its file, so a PDF is renamed rather than downloaded again if its title changes.
 
+- **`.github/workflows/pages.yml`** publishes the archive to GitHub Pages. It
+  runs `scripts/build_site.py` to list every PDF, newest first, by the date in
+  its title. Before deploying, `scripts/a11y-check.mjs` audits the page with
+  axe-core (WCAG 2.2 AA) in light and dark mode at desktop and phone widths;
+  any violation fails the deploy. It runs after every PDF download run.
+
 PDFs that would exceed GitHub's 100 MB file limit even after recompression are
 listed in `PDF/skipped.md` and not retried.
 
