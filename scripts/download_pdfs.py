@@ -11,6 +11,7 @@ Usage: python scripts/download_pdfs.py [links.md] [PDF] [max_per_run]
 """
 
 import io
+import itertools
 import json
 import os
 import re
@@ -29,7 +30,11 @@ MANIFEST_FILE = "manifest.json"
 
 
 def pages_from_reader3(session, username, doc_name):
-    res = get(session, f"https://reader3.isu.pub/{username}/{doc_name}/reader3_4.json")
+    res = get(
+        session,
+        f"https://reader3.isu.pub/{username}/{doc_name}/reader3_4.json",
+        headers={"Referer": f"https://issuu.com/{username}/docs/{doc_name}", "Origin": "https://issuu.com"},
+    )
     if res is None:
         return None
     try:
@@ -45,7 +50,10 @@ def pages_from_reader3(session, username, doc_name):
     return urls or None
 
 
-def page_urls(document_id, page_count):
+def page_urls(document_id, page_count=None):
+    """Page image URLs; open-ended (an iterator) when the page count is unknown."""
+    if page_count is None:
+        return (f"https://image.isu.pub/{document_id}/jpg/page_{n}.jpg" for n in itertools.count(1))
     return [
         f"https://image.isu.pub/{document_id}/jpg/page_{n}.jpg"
         for n in range(1, page_count + 1)
@@ -67,25 +75,49 @@ def pages_from_pub_api(session, username, doc_name):
     return page_urls(document_id, int(page_count))
 
 
+def unescape_page(text):
+    """Undoes the escaping Issuu's pages apply to their embedded JSON data."""
+    for _ in range(2):  # data can be escaped twice (JSON inside a JS string)
+        text = text.replace("\\\\", "\\").replace('\\"', '"').replace("\\/", "/")
+    return text.replace("&quot;", '"').replace("\\u002F", "/").replace("\\u0026", "&")
+
+
+def find_document(text):
+    """Returns (document id, page count or None) found in a flipbook page's HTML."""
+    doc_id = re.search(r"image\.isu\.pub/([^/\"'\s?]+)/jpg/page_\d", text)
+    if doc_id:
+        doc_id = doc_id.group(1)
+    else:
+        rev = re.search(r'"revisionId"\s*:\s*"?(\w+)', text)
+        pub = re.search(r'"publicationId"\s*:\s*"?(\w+)', text)
+        doc = re.search(r'"documentId"\s*:\s*"([^"]+)"', text)
+        doc_id = f"{rev.group(1)}-{pub.group(1)}" if rev and pub else (doc.group(1) if doc else None)
+    count = re.search(r'"(?:pageCount|numberOfPages|pagesCount|totalPages)"\s*:\s*"?(\d+)', text)
+    return doc_id, int(count.group(1)) if count else None
+
+
 def pages_from_html(session, username, doc_name):
     res = get(session, f"https://issuu.com/{username}/docs/{doc_name}")
     if res is None:
         return None
-    text = res.text.replace("\\/", "/")
-    doc_id = re.search(r"image\.isu\.pub/([^/\"']+)/jpg/page_1", text) or re.search(
-        r"\"documentId\"\s*:\s*\"([^\"]+)\"", text
-    )
-    count = re.search(r"\"pageCount\"\s*:\s*(\d+)", text)
-    if not doc_id or not count:
+    text = unescape_page(res.text)
+    doc_id, count = find_document(text)
+    print(f"  page HTML: document id {doc_id or 'not found'}, page count {count or 'not found'}")
+    if not doc_id:
+        # Log a few hints so the patterns above can be fixed if Issuu changes its pages.
+        for m in list(re.finditer(r"isu\.pub|pageCount|publicationId|documentId", text))[:5]:
+            print(f"    hint: …{text[max(0, m.start() - 80):m.end() + 80]!r}…")
         return None
-    return page_urls(doc_id.group(1), int(count.group(1)))
+    # Without a page count, download pages until one is missing.
+    return page_urls(doc_id, count)
 
 
 def resolve_pages(session, username, doc_name):
     for strategy in (pages_from_reader3, pages_from_pub_api, pages_from_html):
         urls = strategy(session, username, doc_name)
         if urls:
-            print(f"  {len(urls)} pages via {strategy.__name__}")
+            count = len(urls) if isinstance(urls, list) else "unknown number of"
+            print(f"  {count} pages via {strategy.__name__}")
             return urls
     raise RuntimeError("could not resolve page images")
 
@@ -126,11 +158,15 @@ def build_pdf(pages):
 def download(session, url, out_path):
     username, doc_name = parse_issuu_url(url)
     urls = resolve_pages(session, username, doc_name)
+    known = isinstance(urls, list)
     pages = []
     for n, page_url in enumerate(urls, 1):
         data = fetch_page(session, page_url)
         if data is None:
-            raise RuntimeError(f"page {n}/{len(urls)} failed: {page_url}")
+            if not known and pages:
+                break  # past the last page
+            total = len(urls) if known else "?"
+            raise RuntimeError(f"page {n}/{total} failed: {page_url}")
         pages.append(data)
         time.sleep(0.2)
     pdf = build_pdf(pages)
