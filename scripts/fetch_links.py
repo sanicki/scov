@@ -1,14 +1,17 @@
 """Collects every publication URL on an Issuu profile and merges them into links.md.
 
 Links already in links.md are never removed, so a broken or partial fetch
-cannot shrink the list.
+cannot shrink the list. Flipbooks without a known title get one from their
+own Issuu page; titles already in links.md are kept.
 
 Usage: python scripts/fetch_links.py [username] [links.md]
 """
 
+import html
 import os
 import re
 import sys
+import time
 
 from issuu_common import doc_url, get, make_session, read_links
 
@@ -94,6 +97,51 @@ def fetch_profile_html(session, username, max_pages=50):
     return found
 
 
+TITLE_RES = (
+    re.compile(r'<meta[^>]+property=["\']og:title["\'][^>]+content=["\']([^"\']+)["\']', re.I),
+    re.compile(r'<meta[^>]+content=["\']([^"\']+)["\'][^>]+property=["\']og:title["\']', re.I),
+    re.compile(r"<title[^>]*>([^<]+)</title>", re.I),
+)
+# Issuu page titles look like "Tipster October 2026 by SCV Communications - Issuu".
+TITLE_SUFFIX_RE = re.compile(r"\s+(?:by\s+.+?\s+)?[-|–]\s*Issuu\s*$", re.I)
+
+
+def fetch_title(session, url):
+    """Returns the publication's display title from its page, or None."""
+    res = get(session, url, retries=1)
+    if res is None:
+        return None
+    for pattern in TITLE_RES:
+        match = pattern.search(res.text)
+        if match:
+            title = TITLE_SUFFIX_RE.sub("", html.unescape(match.group(1))).strip()
+            title = re.sub(r"\s+", " ", title)
+            if title and title.lower() != "issuu":
+                return title
+    return None
+
+
+def fill_titles(session, entries, max_failures=5):
+    """Looks up titles for entries labelled only with their doc name.
+
+    Stops after several consecutive failures so an Issuu outage can't stall the job.
+    """
+    filled, failures = [], 0
+    for url, title in entries:
+        doc_name = url.rsplit("/", 1)[-1]
+        if (not title or title == doc_name) and failures < max_failures:
+            found = fetch_title(session, url)
+            failures = 0 if found else failures + 1
+            title = found or title
+            time.sleep(0.3)
+        filled.append((url, title))
+    looked_up = sum(1 for (_, a), (_, b) in zip(entries, filled) if a != b)
+    print(f"Looked up {looked_up} new titles.")
+    if failures >= max_failures:
+        print(f"  [!] Stopped title lookups after {max_failures} consecutive failures.")
+    return filled
+
+
 def fetch_all(username):
     session = make_session()
     combined = {}
@@ -140,6 +188,8 @@ def main():
     fetched_urls = {url for url, _ in fetched}
     merged = [(url, title or existing_titles.get(url)) for url, title in fetched]
     merged += [(url, title) for url, title in existing if url not in fetched_urls]
+
+    merged = fill_titles(make_session(), merged)
 
     new_count = len(fetched_urls - set(existing_titles))
     write_links(links_path, username, merged)
