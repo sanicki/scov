@@ -19,12 +19,17 @@ import sys
 import time
 
 import img2pdf
+import pikepdf
 from PIL import Image
 
 from issuu_common import get, make_session, parse_issuu_url, read_links
 
 # GitHub rejects files over 100 MB.
 MAX_FILE_BYTES = 95 * 1024 * 1024
+# Screen-readable, not print, quality: about a quarter of Issuu's page image size.
+SCREEN_WIDTH = 1200
+SCREEN_QUALITY = 60
+PAGE_WIDTH_INCHES = 8.5  # so pages open at letter width at 100% zoom
 SKIPPED_FILE = "skipped.md"
 MANIFEST_FILE = "manifest.json"
 
@@ -113,7 +118,8 @@ def pages_from_html(session, username, doc_name):
 
 
 def resolve_pages(session, username, doc_name):
-    for strategy in (pages_from_reader3, pages_from_pub_api, pages_from_html):
+    # The flipbook's own page works today; the APIs are kept as fallbacks.
+    for strategy in (pages_from_html, pages_from_reader3, pages_from_pub_api):
         urls = strategy(session, username, doc_name)
         if urls:
             count = len(urls) if isinstance(urls, list) else "unknown number of"
@@ -133,26 +139,52 @@ def fetch_page(session, url):
     return None
 
 
-def to_jpeg(data, max_width=None, quality=None):
-    """Re-encodes an image as JPEG (for non-JPEG pages or to shrink a PDF)."""
+def to_jpeg(data, max_width=SCREEN_WIDTH, quality=SCREEN_QUALITY):
+    """Re-encodes a page image as a screen-sized JPEG."""
     with Image.open(io.BytesIO(data)) as img:
-        if img.format == "JPEG" and max_width is None and quality is None:
-            return data
         img = img.convert("RGB")
-        if max_width and img.width > max_width:
-            img = img.resize((max_width, round(img.height * max_width / img.width)))
+        if img.width > max_width:
+            img = img.resize((max_width, round(img.height * max_width / img.width)), Image.LANCZOS)
+        dpi = img.width / PAGE_WIDTH_INCHES
         out = io.BytesIO()
-        img.save(out, "JPEG", quality=quality or 90, optimize=True)
+        img.save(out, "JPEG", quality=quality, optimize=True, progressive=True, dpi=(dpi, dpi))
         return out.getvalue()
 
 
 def build_pdf(pages):
-    images = [to_jpeg(p) for p in pages]
-    pdf = img2pdf.convert(images)
+    pdf = img2pdf.convert([to_jpeg(p) for p in pages])
     if len(pdf) > MAX_FILE_BYTES:
-        print(f"  PDF is {len(pdf) / 1e6:.0f} MB; recompressing pages...")
-        pdf = img2pdf.convert([to_jpeg(p, max_width=1600, quality=60) for p in pages])
+        print(f"  PDF is {len(pdf) / 1e6:.0f} MB; recompressing pages further...")
+        pdf = img2pdf.convert([to_jpeg(p, max_width=1000, quality=50) for p in pages])
     return pdf
+
+
+def pdf_page_images(path):
+    """Returns the raw page images of a PDF built by build_pdf (one image per page)."""
+    images = []
+    with pikepdf.open(path) as pdf:
+        for page in pdf.pages:
+            found = page.get_images() if hasattr(page, "get_images") else page.images
+            for _, obj in found.items():
+                images.append((int(obj.Width), bytes(obj.read_raw_bytes())))
+    return images
+
+
+def shrink_existing(pdf_dir, manifest):
+    """Re-encodes PDFs saved before the screen-size setting, in place."""
+    for name in manifest.values():
+        path = os.path.join(pdf_dir, name)
+        if not os.path.exists(path):
+            continue
+        images = pdf_page_images(path)
+        if not images or max(width for width, _ in images) <= SCREEN_WIDTH:
+            continue
+        before = os.path.getsize(path)
+        pdf = build_pdf([data for _, data in images])
+        with open(path + ".part", "wb") as f:
+            f.write(pdf)
+        os.replace(path + ".part", path)
+        print(f"Shrank {name}: {before / 1e6:.1f} MB -> {len(pdf) / 1e6:.1f} MB")
 
 
 def download(session, url, out_path):
@@ -267,6 +299,7 @@ def main():
     names = pdf_names(read_links(links_path))
     prune(pdf_dir, manifest, names)
     sync_names(pdf_dir, manifest, names)
+    shrink_existing(pdf_dir, manifest)
     save_manifest(manifest_path, manifest)
 
     pending = []
