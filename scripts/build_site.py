@@ -1,8 +1,6 @@
 """Builds the GitHub Pages site listing every PDF in PDF/, newest first.
 
-Dates come from each flipbook's title, falling back to its Issuu doc name.
-Flipbooks with no year (or no month) borrow it from the nearest newer upload
-in links.md, which Issuu lists newest first.
+Dates come from each flipbook's title in links.md (see naming.py).
 
 Usage: python scripts/build_site.py [links.md] [PDF] [_site]
 """
@@ -10,79 +8,15 @@ Usage: python scripts/build_site.py [links.md] [PDF] [_site]
 import html
 import json
 import os
-import re
 import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
 
-from issuu_common import parse_issuu_url, read_links
+from issuu_common import read_links
+from naming import MONTH_NAMES, dated_entries, parse_date
 
 REPO = os.environ.get("GITHUB_REPOSITORY", "sanicki/scov")
 BRANCH = os.environ.get("SITE_BRANCH", "main")
-
-MONTHS = [
-    ("january", "jan"), ("february", "feb"), ("march", "mar"), ("april", "apr"),
-    ("may", "may"), ("june", "jun"), ("july", "jul"), ("august", "aug"),
-    ("september", "sep"), ("october", "oct"), ("november", "nov"), ("december", "dec"),
-]
-MONTH_NAMES = [full.capitalize() for full, _ in MONTHS]
-# Full names (plus common misspellings) can appear glued to other text.
-FULL_MONTH_RE = re.compile(
-    r"(january|febuary|february|march|april|june|july|august|september|october|november|december)"
-)
-# Short forms must not touch other letters ("may" alone is too common a substring).
-SHORT_MONTH_RE = re.compile(r"(?<![a-z])(jan|feb|mar|apr|may|jun|jul|aug|sept|sep|oct|nov|dec)(?![a-z])")
-NOISE_RE = re.compile(r"tipster|divots|vistoso|issuu|teetogreen")
-NUMERIC_DATE_RE = re.compile(r"(?<!\d)(19[89]\d|20\d\d)-(0[1-9]|1[0-2])(?!\d)")
-YEAR_RE = re.compile(r"(?<!\d)(19[89]\d|20\d\d)(?!\d)")
-
-
-def month_number(token):
-    token = token.replace("febuary", "february")
-    for n, (full, short) in enumerate(MONTHS, 1):
-        if token == full or token.startswith(short):
-            return n
-    return None
-
-
-def parse_date(text):
-    """Returns (year, month) found in text; either may be None."""
-    text = NOISE_RE.sub(" ", text.lower().replace("%20", " "))
-    numeric = NUMERIC_DATE_RE.search(text)
-    text = re.sub(r"[_\-.]+", " ", text)
-    match = FULL_MONTH_RE.search(text) or SHORT_MONTH_RE.search(text)
-    month = month_number(match.group(1)) if match else None
-    if month is None and numeric:
-        return int(numeric.group(1)), int(numeric.group(2))
-    years = YEAR_RE.findall(text)
-    year = int(years[0]) if years else None
-    if year is None and match:
-        # Two-digit year right after the month: "oct26", "july 18".
-        short = re.match(r"\s*(\d{2})(?!\d)", text[match.end():])
-        if short:
-            year = 2000 + int(short.group(1))
-    return year, month
-
-
-def dated_entries(entries):
-    """Adds (year, month, inferred) to each (url, title), filling gaps from newer neighbours."""
-    result = []
-    prev_year = prev_month = None
-    for url, title in entries:
-        doc_name = parse_issuu_url(url)[1]
-        year, month = parse_date(title or "")
-        doc_year, doc_month = parse_date(doc_name)
-        year, month = year or doc_year, month or doc_month
-        inferred = False
-        if year is None and prev_year is not None:
-            year, month, inferred = prev_year, month or prev_month, True
-        elif month is None and year == prev_year:
-            month, inferred = prev_month, True
-        result.append((url, title, year, month, inferred))
-        if year is not None:
-            prev_year, prev_month = year, month
-    return result
-
 
 def load_pdfs(links_path, pdf_dir):
     """Returns the PDFs to list, newest first, as dicts."""
@@ -158,12 +92,14 @@ def render(items, generated):
         rows = []
         for item in group:
             title, label = esc(item["title"]), esc(date_label(item))
+            # Most names already end in their date; only show it when they don't.
+            supporting = "" if date_label(item) in item["title"] else f'<span class="supporting">{label}</span>'
             search = esc(f"{item['title']} {date_label(item)}".lower(), quote=True)
             rows.append(f"""<li class="item" data-search="{search}">
   <span class="leading">{ICON_PDF}</span>
   <div class="text">
     <a class="headline" href="{esc(pdf_url('blob', item['name']))}">{title}</a>
-    <span class="supporting">{label}</span>
+    {supporting}
   </div>
   <a class="icon-button" href="{esc(pdf_url('raw', item['name']))}" download>{ICON_DOWNLOAD}<span class="visually-hidden">Download {title}</span></a>
 </li>""")

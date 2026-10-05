@@ -2,7 +2,8 @@
 
 Links already in links.md are never removed, so a broken or partial fetch
 cannot shrink the list. Flipbooks without a known title get one from their
-own Issuu page; titles already in links.md are kept.
+own Issuu page, which naming.py turns into a consistent name such as
+"Tipster – September 2026".
 
 Usage: python scripts/fetch_links.py [username] [links.md]
 """
@@ -14,6 +15,7 @@ import sys
 import time
 
 from issuu_common import doc_url, get, make_session, read_links
+from naming import display_names
 
 
 def fetch_reader_api(session, username, page_size=100):
@@ -189,7 +191,7 @@ def main():
     merged = [(url, title or existing_titles.get(url)) for url, title in fetched]
     merged += [(url, title) for url, title in existing if url not in fetched_urls]
 
-    merged = fill_titles(make_session(), merged)
+    merged = display_names(fill_titles(make_session(), merged))
 
     new_count = len(fetched_urls - set(existing_titles))
     write_links(links_path, username, merged)
