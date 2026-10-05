@@ -1,7 +1,7 @@
 """Collects every publication URL on an Issuu profile and merges them into links.md.
 
-Links already in links.md are never removed, so a broken or partial fetch
-cannot shrink the list. Flipbooks without a known title get one from their
+Links already in links.md are only removed when a newer upload of the same
+issue replaces them, so a broken or partial fetch cannot shrink the list. Flipbooks without a known title get one from their
 own Issuu page, which naming.py turns into a consistent name such as
 "Tipster – September 2026".
 
@@ -193,7 +193,7 @@ def main():
 
     merged = display_names(fill_titles(make_session(), merged))
 
-    new_count = len(fetched_urls - set(existing_titles))
+    new_count = len({url for url, _ in merged} - set(existing_titles))
     write_links(links_path, username, merged)
     print(f"Wrote {len(merged)} links to {links_path} ({new_count} new).")
 
