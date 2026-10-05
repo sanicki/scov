@@ -2,9 +2,11 @@
 
 Names look like "Tipster – September 2026", "Divots – October 2019" or
 "Tee to Green – March 2021". One-off publications keep their Issuu title with
-its date normalised, e.g. "New Resident Booklet – August 2025". Repeated names
-are numbered by upload order: the oldest keeps the plain name, later uploads
-get " (2)", " (3)", ...
+its date normalised, e.g. "New Resident Booklet – August 2025".
+
+When an issue was uploaded more than once, only the latest upload is kept,
+since earlier copies may contain mistakes. (Undated names can't be told apart
+that way, so repeats of those are numbered instead.)
 
 To fix a name by hand, add the flipbook's doc name (the last part of its Issuu
 URL) to OVERRIDES.
@@ -127,15 +129,24 @@ def base_name(title, doc_name, year, month, inferred):
 
 
 def display_names(entries):
-    """Returns [(url, name)] for [(url, title)] in links.md order (newest first)."""
-    bases = [
-        base_name(title, parse_issuu_url(url)[1], year, month, inferred)
+    """Returns [(url, name)] for [(url, title)] in links.md order (newest first).
+
+    Only the newest upload of each dated name is kept.
+    """
+    named = [
+        (url, base_name(title, parse_issuu_url(url)[1], year, month, inferred))
         for url, title, year, month, inferred in dated_entries(entries)
     ]
-    # Number repeats from the oldest upload, so existing names never change.
-    seen = {}
-    names = [None] * len(bases)
-    for i in reversed(range(len(bases))):
-        seen[bases[i]] = seen.get(bases[i], 0) + 1
-        names[i] = bases[i] if seen[bases[i]] == 1 else f"{bases[i]} ({seen[bases[i]]})"
-    return [(url, name) for (url, _), name in zip(entries, names)]
+    kept, seen = [], set()
+    for url, name in named:
+        if YEAR_RE.search(name):
+            if name in seen:
+                continue
+            seen.add(name)
+        kept.append((url, name))
+    # Number undated repeats from the oldest upload, so existing names never change.
+    counts, numbered = {}, []
+    for url, name in reversed(kept):
+        counts[name] = counts.get(name, 0) + 1
+        numbered.append((url, name if counts[name] == 1 else f"{name} ({counts[name]})"))
+    return numbered[::-1]

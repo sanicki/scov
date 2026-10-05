@@ -13,8 +13,9 @@ Archives the flipbooks published at https://issuu.com/scvcommunications.
 Every flipbook gets a consistent name, such as "Tipster – September 2026",
 "Divots – October 2019" or "Tee to Green – March 2021", built by
 `scripts/naming.py` from its Issuu title and doc name. One-off publications keep
-their own title with a normalised date. Repeats are numbered by upload order:
-the oldest keeps the plain name, later uploads get " (2)", " (3)", and so on.
+their own title with a normalised date. When an issue was uploaded more than
+once, only the latest upload is kept in `links.md`, since earlier copies may
+contain mistakes; its PDF is replaced and the older copy's PDF deleted.
 To fix a name by hand, add the doc name to `OVERRIDES` in `scripts/naming.py`.
 
 PDFs are named after the flipbook's name in `links.md` (with the Issuu doc name
