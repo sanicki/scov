@@ -55,6 +55,12 @@ jobs:
           done
           exit 1
 
+      - name: Publish site
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run pages.yml --ref main
+
       # Work through a large backlog in batches; stops once a run makes no progress.
       - name: Continue with next batch
         if: steps.download.outputs.remaining > 0 && steps.download.outputs.downloaded > 0

@@ -1,0 +1,61 @@
+name: Publish site
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - PDF/**
+      - links.md
+      - scripts/build_site.py
+      - scripts/a11y-check.mjs
+      - .github/workflows/pages.yml
+  # Also started by download-pdfs.yml, since its pushes don't trigger `on: push`.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build site
+        run: python scripts/build_site.py links.md PDF _site
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Accessibility audit (axe-core, WCAG 2.2 AA)
+        run: |
+          npm install --no-save --no-audit --no-fund axe-core@4 playwright@1
+          npx playwright install --with-deps chromium
+          node scripts/a11y-check.mjs _site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
