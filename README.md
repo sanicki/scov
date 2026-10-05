@@ -33,6 +33,13 @@ PDFs are made for reading on screen, not printing: page images are scaled to
 Issuu's originals) and sized to open at letter width. Older, larger PDFs are
 re-encoded in place on the next download run.
 
+Every PDF is also run through OCR (Tesseract, via `ocrmypdf`) after it's
+downloaded: the PDF gets a searchable text layer, and its text is saved as
+`text/<title>.md` with the title, date, source link and a heading per page. The
+site publishes these as `text/<title>.txt`, lists them in `llms.txt`, and
+combines them in `llms-full.txt`, so AI tools and search can read the archive.
+OCR text can contain errors, especially in tables and figures; check the PDF.
+
 PDFs that would exceed GitHub's 100 MB file limit even after recompression are
 listed in `PDF/skipped.md` and not retried.
 
