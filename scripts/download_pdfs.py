@@ -1,12 +1,16 @@
 """Downloads a PDF for every flipbook in links.md that has no PDF yet.
 
-Each flipbook is saved as <pdf_dir>/<doc_name>.pdf. A flipbook is only saved
-when every page downloaded, so a failed one is retried on the next run.
+Each flipbook is saved as <pdf_dir>/<title>.pdf, using its label in links.md.
+Titles shared by several flipbooks get the doc name appended. <pdf_dir>/manifest.json
+records which file belongs to which URL, so a PDF is renamed (not downloaded again)
+when its title changes. A flipbook is only saved when every page downloaded, so
+a failed one is retried on the next run.
 
 Usage: python scripts/download_pdfs.py [links.md] [PDF] [max_per_run]
 """
 
 import io
+import json
 import os
 import re
 import sys
@@ -20,6 +24,7 @@ from issuu_common import get, make_session, parse_issuu_url, read_links
 # GitHub rejects files over 100 MB.
 MAX_FILE_BYTES = 95 * 1024 * 1024
 SKIPPED_FILE = "skipped.md"
+MANIFEST_FILE = "manifest.json"
 
 
 def pages_from_reader3(session, username, doc_name):
@@ -145,6 +150,64 @@ def read_skipped(path):
         return set()
 
 
+def safe_filename(title, max_length=150):
+    name = re.sub(r'[\\/:*?"<>|\x00-\x1f]', " ", title)
+    name = re.sub(r"\s+", " ", name).strip(" .")
+    return name[:max_length].rstrip(" .")
+
+
+def pdf_names(entries):
+    """Maps each URL to a unique PDF file name derived from its title."""
+    bases = {}
+    for url, title in entries:
+        doc_name = parse_issuu_url(url)[1]
+        bases[url] = safe_filename(title or "") or doc_name
+    counts = {}
+    for base in bases.values():
+        counts[base.lower()] = counts.get(base.lower(), 0) + 1
+    names = {}
+    for url, base in bases.items():
+        doc_name = parse_issuu_url(url)[1]
+        if counts[base.lower()] > 1 and base != doc_name:
+            base = f"{base} ({doc_name})"
+        names[url] = f"{base}.pdf"
+    return names
+
+
+def load_manifest(path):
+    try:
+        with open(path, encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {}
+
+
+def save_manifest(path, manifest):
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(dict(sorted(manifest.items())), f, indent=2, ensure_ascii=False)
+        f.write("\n")
+
+
+def sync_names(pdf_dir, manifest, names):
+    """Renames already-downloaded PDFs whose title changed."""
+    targets = {}
+    for url, old in list(manifest.items()):
+        new = names.get(url)
+        if new is None or new == old:
+            continue
+        if not os.path.exists(os.path.join(pdf_dir, old)):
+            del manifest[url]
+            continue
+        # Move via a temporary name so titles can swap between files.
+        tmp = f".rename-{len(targets)}.tmp"
+        os.replace(os.path.join(pdf_dir, old), os.path.join(pdf_dir, tmp))
+        targets[url] = (tmp, new)
+    for url, (tmp, new) in targets.items():
+        print(f"Renaming {manifest[url]} -> {new}")
+        os.replace(os.path.join(pdf_dir, tmp), os.path.join(pdf_dir, new))
+        manifest[url] = new
+
+
 def main():
     links_path = sys.argv[1] if len(sys.argv) > 1 else "links.md"
     pdf_dir = sys.argv[2] if len(sys.argv) > 2 else "PDF"
@@ -153,11 +216,16 @@ def main():
 
     skipped_path = os.path.join(pdf_dir, SKIPPED_FILE)
     skipped = read_skipped(skipped_path)
+    manifest_path = os.path.join(pdf_dir, MANIFEST_FILE)
+    manifest = load_manifest(manifest_path)
+    names = pdf_names(read_links(links_path))
+    sync_names(pdf_dir, manifest, names)
+    save_manifest(manifest_path, manifest)
+
     pending = []
-    for url, _ in read_links(links_path):
-        _, doc_name = parse_issuu_url(url)
-        out_path = os.path.join(pdf_dir, f"{doc_name}.pdf")
-        if url not in skipped and not os.path.exists(out_path):
+    for url, name in names.items():
+        out_path = os.path.join(pdf_dir, name)
+        if url not in skipped and not (manifest.get(url) == name and os.path.exists(out_path)):
             pending.append((url, out_path))
 
     print(f"{len(pending)} flipbooks without a PDF; downloading up to {max_per_run}.")
@@ -172,6 +240,8 @@ def main():
         print(f"  {'saved ' + out_path if ok else 'skipped' if ok is False else 'FAILED'}: {detail}")
         if ok:
             downloaded += 1
+            manifest[url] = os.path.basename(out_path)
+            save_manifest(manifest_path, manifest)
         elif ok is False:
             newly_skipped += 1
             with open(skipped_path, "a", encoding="utf-8") as f:
