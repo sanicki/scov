@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
     paths: [links.md]
+  # Safety net: resumes the batch chain if GitHub drops a run. With nothing
+  # pending, a scheduled run just checks and exits.
+  schedule:
+    - cron: "23 */6 * * *" # every 6 hours, at :23 past (UTC)
   workflow_dispatch:
     inputs:
       max_per_run:
