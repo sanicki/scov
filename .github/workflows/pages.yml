@@ -26,9 +26,16 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      # The site only links to the PDFs, so skip downloading them (~2.5 GB):
+      # fetch file contents on demand and leave the PDFs out of the checkout.
       - uses: actions/checkout@v4
         with:
           ref: main
+          filter: blob:none
+          sparse-checkout-cone-mode: false
+          sparse-checkout: |
+            /*
+            !/PDF/*.pdf
 
       - uses: actions/setup-python@v5
         with:
