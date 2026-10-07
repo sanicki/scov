@@ -12,6 +12,7 @@ import html
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
@@ -22,6 +23,22 @@ from naming import MONTH_NAMES, dated_entries, parse_date
 REPO = os.environ.get("GITHUB_REPOSITORY", "sanicki/scov")
 BRANCH = os.environ.get("SITE_BRANCH", "main")
 
+def list_pdfs(pdf_dir):
+    """PDF names in pdf_dir. Asks git when possible, so the site can be built from a
+    checkout that leaves the (large) PDFs out; falls back to the directory listing."""
+    try:
+        out = subprocess.run(
+            ["git", "-C", pdf_dir, "ls-files", "-z", "--", "."],
+            capture_output=True, check=True, text=True,
+        ).stdout
+        names = {n for n in out.split("\0") if n and "/" not in n}
+    except (OSError, subprocess.CalledProcessError):
+        names = set()
+    if os.path.isdir(pdf_dir):
+        names |= set(os.listdir(pdf_dir))
+    return {n for n in names if n.lower().endswith(".pdf")}
+
+
 def load_pdfs(links_path, pdf_dir, text_dir="text"):
     """Returns the PDFs to list, newest first, as dicts."""
     try:
@@ -29,7 +46,7 @@ def load_pdfs(links_path, pdf_dir, text_dir="text"):
             manifest = json.load(f)
     except FileNotFoundError:
         manifest = {}
-    files = {n for n in os.listdir(pdf_dir) if n.lower().endswith(".pdf")} if os.path.isdir(pdf_dir) else set()
+    files = list_pdfs(pdf_dir)
 
     items = []
     listed = set()
