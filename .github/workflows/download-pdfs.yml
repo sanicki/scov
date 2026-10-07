@@ -36,7 +36,9 @@ jobs:
           python-version: "3.12"
           cache: pip
 
+      # Fail fast if the apt mirror stalls; the next scheduled run retries.
       - name: Install OCR tools
+        timeout-minutes: 10
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq tesseract-ocr tesseract-ocr-eng ghostscript

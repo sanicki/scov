@@ -25,6 +25,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       # The site only links to the PDFs, so skip downloading them (~2.5 GB):
       # fetch file contents on demand and leave the PDFs out of the checkout.
@@ -51,10 +52,17 @@ jobs:
         with:
           node-version: 22
 
+      # Uses the Chrome preinstalled on GitHub's Ubuntu runners: installing a
+      # browser with --with-deps runs apt-get, which once hung for 40+ minutes.
       - name: Accessibility audit (axe-core, WCAG 2.2 AA)
+        timeout-minutes: 10
         run: |
           npm install --no-save --no-audit --no-fund axe-core@4 playwright@1
-          npx playwright install --with-deps chromium
+          if CHROMIUM_PATH=$(command -v google-chrome || command -v google-chrome-stable || command -v chromium); then
+            export CHROMIUM_PATH
+          else
+            npx playwright install chromium
+          fi
           node scripts/a11y-check.mjs _site/index.html
 
       - uses: actions/upload-pages-artifact@v3
@@ -64,6 +72,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
