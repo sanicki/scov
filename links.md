@@ -1,8 +1,9 @@
 # scvcommunications flipbooks
 
-Publications from https://issuu.com/scvcommunications (228 total).
+Publications from https://issuu.com/scvcommunications (229 total).
 Updated daily by `.github/workflows/fetch-links.yml`.
 
+- [Tipster – November 2026](https://issuu.com/scvcommunications/docs/11_november_2026_tipster_issuu)
 - [Golf Handbook – 2026](https://issuu.com/scvcommunications/docs/golf_handbook_2026_7.1.26)
 - [Tipster – October 2026](https://issuu.com/scvcommunications/docs/10_october_2026_tipster_issuu)
 - [Tipster – September 2026](https://issuu.com/scvcommunications/docs/9_september_2026_tipster_issuu)
